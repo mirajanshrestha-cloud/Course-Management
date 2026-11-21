@@ -2,72 +2,62 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Course;
 use App\Models\Student;
+use App\Models\Course;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
     public function index()
     {
-        $students = Student::with('course')->latest()->get();
-
-        return view('students.index', compact('students'));
+        return view('students.index', [
+            'students' => Student::all(),
+        ]);
     }
 
     public function create()
     {
-        $courses = Course::orderBy('name')->get();
-
-        return view('students.create', compact('courses'));
+        return view('students.create', [
+            'courses' => Course::all(),
+        ]);
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:students,email',
-            'phone' => 'nullable|string|max:30',
-            'date_of_birth' => 'nullable|date',
-            'course_id' => 'required|exists:courses,id',
-        ]);
-
-        Student::create($validated);
+        $student = Student::create(
+            $request->validate($this->rules())
+        );
 
         return redirect()
             ->route('students.index')
-            ->with('success', 'Student created successfully.');
+            ->with('success', "Student {$student->name} created successfully!");
     }
 
     public function show(Student $student)
     {
-        $student->load('course');
-
-        return view('students.show', compact('student'));
+        return view('students.show', [
+            'student' => $student,
+        ]);
     }
 
     public function edit(Student $student)
     {
-        $courses = Course::orderBy('name')->get();
-
-        return view('students.edit', compact('student', 'courses'));
+        return view('students.edit', [
+            'student' => $student,
+            'courses' => Course::all(),
+        ]);
     }
 
     public function update(Request $request, Student $student)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:students,email,' . $student->id,
-            'phone' => 'nullable|string|max:30',
-            'date_of_birth' => 'nullable|date',
-            'course_id' => 'required|exists:courses,id',
-        ]);
-
-        $student->update($validated);
+        $student->update(
+            $request->validate($this->rules($student))
+        );
 
         return redirect()
-            ->route('students.index')
-            ->with('success', 'Student updated successfully.');
+            ->route('students.show', $student)
+            ->with('success', 'Student updated successfully!');
     }
 
     public function destroy(Student $student)
@@ -76,6 +66,23 @@ class StudentController extends Controller
 
         return redirect()
             ->route('students.index')
-            ->with('success', 'Student deleted successfully.');
+            ->with('success', 'Student deleted successfully!');
+    }
+
+    private function rules(?Student $student = null): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('students', 'email')->ignore($student?->id),
+            ],
+            'phone' => 'required|string|max:20',
+            'address' => 'nullable|string|max:500',
+            'date_of_birth' => 'nullable|date',
+            'course_id' => 'required|integer|exists:courses,id',
+        ];
     }
 }

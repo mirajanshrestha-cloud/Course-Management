@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Student extends Model
 {
@@ -11,15 +11,24 @@ class Student extends Model
         'name',
         'email',
         'phone',
+        'address',
         'date_of_birth',
         'course_id',
     ];
 
-    protected $casts = [
-        'date_of_birth' => 'date',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'date_of_birth' => 'date',
+        ];
+    }
 
-    public function course(): BelongsTo
+    protected function age(): Attribute
+    {
+        return Attribute::get(fn () => $this->date_of_birth?->age);
+    }
+
+    public function course()
     {
         return $this->belongsTo(Course::class);
     }

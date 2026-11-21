@@ -4,14 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CourseController extends Controller
 {
     public function index()
     {
-        $courses = Course::latest()->get();
-
-        return view('courses.index', compact('courses'));
+        return view('courses.index', [
+            'courses' => Course::all(),
+        ]);
     }
 
     public function create()
@@ -21,42 +22,42 @@ class CourseController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|max:50|unique:courses,code',
-            'description' => 'nullable|string',
-        ]);
+        $validated = $request->validate($this->rules());
 
-        Course::create($validated);
+        $validated['is_active'] = $request->boolean('is_active');
+
+        $course = Course::create($validated);
 
         return redirect()
             ->route('courses.index')
-            ->with('success', 'Course created successfully.');
+            ->with('success', "Course {$course->name} created successfully!");
     }
 
     public function show(Course $course)
     {
-        return view('courses.show', compact('course'));
+        return view('courses.show', [
+            'course' => $course,
+        ]);
     }
 
     public function edit(Course $course)
     {
-        return view('courses.edit', compact('course'));
+        return view('courses.edit', [
+            'course' => $course,
+        ]);
     }
 
     public function update(Request $request, Course $course)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|max:50|unique:courses,code,' . $course->id,
-            'description' => 'nullable|string',
-        ]);
+        $validated = $request->validate($this->rules($course));
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         $course->update($validated);
 
         return redirect()
-            ->route('courses.index')
-            ->with('success', 'Course updated successfully.');
+            ->route('courses.show', $course)
+            ->with('success', 'Course updated successfully!');
     }
 
     public function destroy(Course $course)
@@ -65,6 +66,31 @@ class CourseController extends Controller
 
         return redirect()
             ->route('courses.index')
-            ->with('success', 'Course deleted successfully.');
+            ->with('success', 'Course deleted successfully!');
+    }
+
+    private function rules(?Course $course = null): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+
+            'code' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('courses', 'code')->ignore($course?->id),
+            ],
+
+            'description' => 'nullable|string',
+            'duration' => 'required|integer|min:1',
+            'fee' => 'required|numeric|min:0',
+
+            'difficulty' => [
+                'required',
+                Rule::in(['Easy', 'Medium', 'Hard']),
+            ],
+
+            'is_active' => 'nullable|boolean',
+        ];
     }
 }
